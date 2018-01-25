@@ -531,6 +531,12 @@ src_libdrivers_la_SOURCES += \
 	src/hardware/uni-t-ut32x/protocol.c \
 	src/hardware/uni-t-ut32x/api.c
 endif
+if HW_VELLEMAN_PCSU1000
+src_libdrivers_la_SOURCES += \
+	src/hardware/velleman-pcsu1000/protocol.h \
+	src/hardware/velleman-pcsu1000/protocol.c \
+	src/hardware/velleman-pcsu1000/api.c
+endif
 if HW_VICTOR_DMM
 src_libdrivers_la_SOURCES += \
 	src/hardware/victor-dmm/protocol.h \
