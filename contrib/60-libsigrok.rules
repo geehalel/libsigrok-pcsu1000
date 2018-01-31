@@ -250,6 +250,9 @@ ATTRS{idVendor}=="1a86", ATTRS{idProduct}=="e008", ENV{ID_SIGROK}="1"
 # http://sigrok.org/wiki/Device_cables#V.26A_VA4000
 ATTRS{idVendor}=="04fc", ATTRS{idProduct}=="0201", ENV{ID_SIGROK}="1"
 
+# Velleman PCSU1000
+ATTRS{idVendor}=="10cf", ATTRS{idProduct}=="1000", ENV{ID_SIGROK}="1"
+
 # Victor 70C
 # Victor 86C
 ATTRS{idVendor}=="1244", ATTRS{idProduct}=="d237", ENV{ID_SIGROK}="1"
