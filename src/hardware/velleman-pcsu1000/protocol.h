@@ -22,6 +22,7 @@
 
 #include <stdint.h>
 #include <glib.h>
+#include <ftdi.h>
 #include <libsigrok/libsigrok.h>
 #include "libsigrok-internal.h"
 
@@ -121,10 +122,13 @@ enum states {
 
 
 struct dev_context {
+	/* FTDI stuff */
+	struct ftdi_context ftdic;
+	
 	uint64_t limit_frames;
 	uint64_t num_frames;
 	GSList *enabled_channels;
-	int64_t fw_updated;
+	gboolean fw_uploaded;
 	int epin_maxpacketsize;
 	int capture_empty_count;
 	int dev_state;
@@ -154,6 +158,8 @@ struct dev_context {
 	unsigned char *framebuf;
 };
 
+SR_PRIV int velleman_pcsu1000_upload_firmware(struct sr_context *ctx,
+			  struct dev_context *devc, const char *name);
 SR_PRIV int velleman_pcsu1000_receive_data(int fd, int revents, void *cb_data);
 
 #endif

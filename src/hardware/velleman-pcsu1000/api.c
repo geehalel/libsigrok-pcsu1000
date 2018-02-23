@@ -34,17 +34,17 @@ static struct sr_dev_inst *pcsu1000_dev_new()
 	struct dev_context *devc;
 	unsigned int i;
 
+
 	sdi = g_malloc0(sizeof(struct sr_dev_inst));
 	sdi->status = SR_ST_INITIALIZING;
-	sdi->vendor = g_strdup("Velleman");
-	sdi->model = g_strdup("PCSU1000");
 
 	/*
 	 * Add only the real channels -- EXT isn't a source of data, only
 	 * a trigger source internal to the device.
 	 */
 	for (i = 0; i < ARRAY_SIZE(channel_names); i++) {
-		ch = sr_channel_new(sdi, i, SR_CHANNEL_ANALOG, TRUE, channel_names[i]);
+		ch = sr_channel_new(sdi, i, SR_CHANNEL_ANALOG, TRUE,
+				channel_names[i]);
 		cg = g_malloc0(sizeof(struct sr_channel_group));
 		cg->name = g_strdup(channel_names[i]);
 		cg->channels = g_slist_append(cg->channels, ch);
@@ -52,6 +52,8 @@ static struct sr_dev_inst *pcsu1000_dev_new()
 	}
 
 	devc = g_malloc0(sizeof(struct dev_context));
+
+	devc->fw_uploaded = FALSE;
 	devc->dev_state = IDLE;
 	devc->timebase = DEFAULT_TIMEBASE;
 	devc->samplerate = DEFAULT_SAMPLERATE;
@@ -89,7 +91,10 @@ static GSList *scan(struct sr_dev_driver *di, GSList *options)
 	int i;
 	const char *conn;
 	char connection_id[64];
-
+	char manufacturer[64];
+	char description[64];
+	char serial[64];
+	
 	devices = NULL;
 	drvc = di->context;
 	drvc->instances = NULL;
@@ -106,7 +111,7 @@ static GSList *scan(struct sr_dev_driver *di, GSList *options)
 	else
 		conn_devices = NULL;
 
-	/* Find all Velleman PCSU1000 devices and upload firmware to all of them. */
+	/* Find all PCSU1000 devices and upload firmware to all of them. */
 	libusb_get_device_list(drvc->sr_ctx->libusb_ctx, &devlist);
 	for (i = 0; devlist[i]; i++) {
 		if (conn) {
@@ -114,7 +119,8 @@ static GSList *scan(struct sr_dev_driver *di, GSList *options)
 			for (l = conn_devices; l; l = l->next) {
 				usb = l->data;
 				if (usb->bus == libusb_get_bus_number(devlist[i])
-					&& usb->address == libusb_get_device_address(devlist[i]))
+					&& usb->address ==
+					libusb_get_device_address(devlist[i]))
 					break;
 			}
 			if (!l)
@@ -125,25 +131,35 @@ static GSList *scan(struct sr_dev_driver *di, GSList *options)
 
 		libusb_get_device_descriptor(devlist[i], &des);
 
-		usb_get_port_path(devlist[i], connection_id, sizeof(connection_id));
+		usb_get_port_path(devlist[i], connection_id,
+				sizeof(connection_id));
 
 		if (des.idVendor == VELLEMAN_PCSU1000_VID
 			&& des.idProduct == VELLEMAN_PCSU1000_PID) {
 			/* Device matches the Vid/Pid. */
-			sr_dbg("Found a %s %s.", "Velleman", "PCSU1000");
 			sdi = pcsu1000_dev_new();
 			sdi->connection_id = g_strdup(connection_id);
-			devices = g_slist_append(devices, sdi);
 			devc = sdi->priv;
-			//if (ezusb_upload_firmware(drvc->sr_ctx, devlist[i],
-			//				USB_CONFIGURATION, prof->firmware) == SR_OK)
-				/* Remember when the firmware on this device was updated */
-			//	devc->fw_updated = g_get_monotonic_time();
-			//else
-			//	sr_err("Firmware upload failed");
+			ftdi_init(&devc->ftdic);
+			ftdi_usb_get_strings(&devc->ftdic, devlist[i],
+					manufacturer, sizeof(manufacturer),
+					description, sizeof(description),
+					serial, sizeof(serial));
+			sdi->vendor=g_strdup(manufacturer);
+			sdi->model=g_strdup(description);
+			sdi->serial_num=g_strdup(serial);
+			devices = g_slist_append(devices, sdi);
+
+			sr_dbg("Found a %s %s - Serial %s.", sdi->vendor,
+				sdi->model, sdi->serial_num);
+			if (velleman_pcsu1000_upload_firmware(drvc->sr_ctx,
+				   devc, VELLEMAN_PCSU1000_FIRMAWRE) == SR_OK)
+				devc->fw_uploaded = TRUE;
+			else
+				sr_err("Firmware upload failed");
 			/* Dummy USB address of 0xff will get overwritten later. */
-			sdi->conn = sr_usb_dev_inst_new(
-				libusb_get_bus_number(devlist[i]), 0xff, NULL);
+			//sdi->conn = sr_usb_dev_inst_new(
+			//	libusb_get_bus_number(devlist[i]), 0xff, NULL);
 		}
 	}
 	libusb_free_device_list(devlist, 1);
